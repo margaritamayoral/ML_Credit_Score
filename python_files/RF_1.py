@@ -444,6 +444,37 @@ plt.boxplot(results)
 ax34.set_xticklabels(names)
 plt.savefig("../output/Algorithms_Comparison.png")
 
+##### Model 1 using Random Forest to predict credit score
+
+#Setting the hyperparameters:
+
+param_grid = {"max_depth": [3, 5, 7, 10, None], "n_estimators": [3, 5, 10, 25, 50, 150],
+              "max_features": [4, 7, 15, 20]}
+
+#Creating the classifier:
+model = RandomForestClassifier(random_state=2)
+
+grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='recall', verbose=4)
+grid_search.fit(X_train, y_train)
+
+print(grid_search.best_score_)
+print(grid_search.best_params_)
+
+rf = RandomForestClassifier(max_depth=None, max_features=10, n_estimators=15, random_state=2)
+#Training with the best parameters
+rf.fit(X_train, y_train)
+
+# Testing the model
+#Predicting using the model
+y_pred = rf.predict(X_test)
+
+#Verifying:
+
+print(accuracy_score(y_test, y_pred))
+print("\n")
+print(confusion_matrix(y_test, y_pred))
+print("\n")
+print(fbeta_score(y_test, y_pred, beta=2))
 
 
 
