@@ -28,6 +28,13 @@ from sklearn.ensemble import GradientBoostingClassifier
 
 #from xgboost import XGBClassifier
 
+#########################################
+#### Model 2
+from sklearn.utils import resample
+from sklearn.metrics import roc_curve
+
+#######################################
+
 import plotly.offline as py
 #py_init_notebook_mode(conected=True)
 import plotly.graph_objs as go
@@ -476,5 +483,26 @@ print(confusion_matrix(y_test, y_pred))
 print("\n")
 print(fbeta_score(y_test, y_pred, beta=2))
 
+#### Model 2
+
+#Classificador logreg
+
+GNB = GaussianNB()
+
+#Fitting with train data
+
+model2 = GNB.fit(X_train, y_train)
+
+#Printing the training score
+print("Training score data:")
+print(model2.score(X_train, y_train))
+
+y_pred2 = model2.predict(X_test)
+
+print(accuracy_score(y_test, y_pred2))
+print("\n")
+print(confusion_matrix(y_test, y_pred2))
+print("\n")
+print(classification_report(y_test, y_pred2))
 
 
