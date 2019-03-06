@@ -34,6 +34,17 @@ from sklearn.utils import resample
 from sklearn.metrics import roc_curve
 
 #######################################
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.pipeline import FeatureUnion
+from sklearn.linear_model import LogisticRegression
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest
+
+
+
+#######################################
 
 import plotly.offline as py
 #py_init_notebook_mode(conected=True)
@@ -506,3 +517,54 @@ print("\n")
 print(classification_report(y_test, y_pred2))
 
 
+#### ROC curve
+
+# Predicting proba
+y_pred_prob = model2.predict_proba(X_test)[:, 1]
+# Generate Roc curve values
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
+
+#Plot ROC curve
+ax35 = plt.figure(figsize=(11, 16))
+plt.plot([0, 1], [0, 1], 'k--')
+plt.plot(fpr, tpr)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Roc Curve')
+plt.savefig("../output/ROC_curve.png")
+
+features = []
+features.append(('pca', PCA(n_components=2)))
+features.append(('select_best', SelectKBest(k=6)))
+feature_union = FeatureUnion(features)
+#create pipeline
+estimators = []
+estimators.append(('feature_union', feature_union))
+estimators.append(('logistic', GaussianNB()))
+model3 = Pipeline(estimators)
+#evaluate pipeline
+seed = 7
+kfold = KFold(n_splits=10, random_state=seed)
+results = cross_val_score(model, X_train, y_train, cv=kfold)
+print(results.mean())
+
+model3.fit(X_train, y_train)
+y_pred3 = model3.predict(X_test)
+
+print(accuracy_score(y_test, y_pred))
+print("\n")
+print(confusion_matrix(y_test, y_pred))
+print("\n")
+print(fbeta_score(y_test, y_pred, beta=2))
+
+
+### Implementing a pipeline model
+
+## Setting the hyperparameters
+#param_test1 = {
+#    'max_depth': [3, 5, 6, 10]
+#    'min_child_weight':[3, 5, 10]
+#    'gamma': [0.0, 0.1, 0.2, 0.3, 0.4],
+#    'subsample': [i/100.0 for i in range(75, 90, 5)],
+#    'colsample_bytree': [i/100.0 for i in range(75, 90 5)]
+#}
