@@ -9,6 +9,25 @@ import matplotlib as plt
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
+###############################
+from sklearn.model_selection import train_test_split, KFold, cross_val_score  ### used to split the data
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, fbeta_score   ### to evaluate the model
+
+from sklearn.model_selection import GridSearchCV
+
+#### Algorithms models to be compared
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+from sklearn.ensemble import GradientBoostingClassifier
+
+#from xgboost import XGBClassifier
+
 import plotly.offline as py
 #py_init_notebook_mode(conected=True)
 import plotly.graph_objs as go
@@ -244,6 +263,9 @@ plt.savefig("../output/Checking_account_vs_Risk.png")
 
 ### Crosstab to explain more insights in the data
 
+
+
+
 print(pd.crosstab(df.Sex, df.Job))
 
 ax31 = plt.figure(31)
@@ -253,28 +275,175 @@ ax31.set_xlabel("Housing", fontsize=12)
 ax31.set_ylabel("Age", fontsize=12)
 plt.savefig("../output/Housing_Age.png")
 
-print(pd.crosstab(df.["Checking account"], df.Sex))
+print(pd.crosstab(df["Checking account"], df.Sex))
+
 
 date_int = ["Purpose", "Sex"]
 cm = sns.light_palette("green", as_cmap=True)
-pd.crosstab(df[date_int[0]], df)
+pd.crosstab(df[date_int[0]], df[date_int[1]]).style.background_gradient(cmap=cm)
+#can't be printed in run console
+
+#Looking at the total of values in each one of the features
+print("Purpose:", df.Purpose.unique())
+print("Sex:", df.Sex.unique())
+print("Housing:", df.Housing.unique())
+print("Saving accounts:", df['Saving accounts'].unique())
+print("Risk:", df['Risk'].unique())
+print("Checking account:", df['Checking account'].unique())
+print("Aget_cat:", df['Age_cat'].unique())
 
 
+#### Feature Engineering, creating variable Dummies of the values #######
+
+def one_hot_encoder(df, nan_as_category=False):
+    original_columns = list(df.columns)
+    categorical_columns = [col for col in df.columns if df[col].dtype == 'object']
+    df = pd.get_dummies(df, columns=categorical_columns, dummy_na=nan_as_category, drop_first=True)
+    new_columns = [c for c in df.columns if c not in original_columns]
+    return df, new_columns
+
+#### Transforming the data into Dummy variables
+
+df['Saving_accounts'] = df['Saving accounts'].fillna(0)
+df['Checking account'] = df['Checking account'].fillna(0)
+df.loc[df['Saving accounts'] == 'quite rich', 'Saving accounts'] = 'quite_rich'
 
 
+#Purpose to Dummy variables
+
+df = df.merge(pd.get_dummies(df.Purpose, drop_first=True, prefix='Purpose'), left_index=True, right_index=True)
+#print(df.head())
+
+#Sex feature in dummies
+
+df = df.merge(pd.get_dummies(df.Sex, drop_first=True, prefix='Sex'), left_index=True, right_index=True)
+#print(df.head())
+
+### Housing get dummies
+
+df = df.merge(pd.get_dummies(df.Housing, drop_first=True, prefix='Housing'), left_index=True, right_index=True)
+#print(df.head())
+
+### Saving accounts feature in dummies
+
+df = df.merge(pd.get_dummies(df["Saving accounts"], drop_first=True, prefix='Savings'), left_index=True, right_index=True)
+print("Saving accounts checked:")
+print(df.head())
+
+### Risk dummies
+
+df = df.merge(pd.get_dummies(df.Risk, prefix="Risk"), left_index=True, right_index=True)
+
+### Checking account dummies
+
+df = df.merge(pd.get_dummies(df["Checking account"], drop_first=True, prefix="Check"), left_index=True, right_index=True)
+#print(df.head())
+
+### Age_cat dummies
+
+df = df.merge(pd.get_dummies(df["Age_cat"], drop_first=True, prefix="Age_cat"), left_index=True, right_index=True)
+#print(df.head())
+#df.info()
+
+### Excluding the old columns
+
+del df["Saving accounts"]
+del df["Saving_accounts"]
+del df["Checking account"]
+del df["Purpose"]
+del df["Sex"]
+del df["Housing"]
+del df["Age_cat"]
+del df["Risk"]
+del df["Risk_good"]
+
+print("information about the last df:")
+print(df.head())
+print(df.info())
+print(df.describe())
 
 
+### Correlation
 
-
-
+### Looking the correlation
 
 ### Correlation matrix
 ## Calculate correlations
 corr = df.corr()
 
 #Heatmap
-ax11 = plt.figure(11)
-ax11 = sns.heatmap(corr)
+ax32 = plt.figure(32)
+ax32 = sns.heatmap(corr)
 plt.savefig("../output/general_correlations_risk.png")
+
+ax33 = plt.figure(33, figsize=(14, 12))
+ax33 = sns.heatmap(df.corr(), linewidths=0.1, vmax=1.0, square=True, linecolor="white", annot=True)
+plt.savefig("../output/features_correl_heatmap.png")
+
+### Preprocessing
+df['Credit amount'] = np.log(df['Credit amount'])
+print(np.log(df['Credit amount']).head())
+
+
+### Creating X and y variables
+
+X = df.drop('Risk_bad', 1).values
+y = df["Risk_bad"].values
+
+# Splitting X and y into train and test version
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state=42)
+
+
+####################################################
+#print("EXIST STRING?")
+
+#validation = []
+#for x in X_test:
+#    s = x.dtype.type is np.string_
+#    validation.append(s)
+#    print(validation)
+
+######################################################
+#to feed the random state
+
+seed = 7
+
+#prepare models
+
+models = []
+models.append(('LR', LogisticRegression()))
+models.append(('LDA', LinearDiscriminantAnalysis()))
+models.append(('KNN', KNeighborsClassifier()))
+models.append(('CART', DecisionTreeClassifier()))
+models.append(('NB', GaussianNB()))
+models.append(('RF', RandomForestClassifier()))
+models.append(('SVM', SVC(gamma='auto')))
+models.append(('XGB', GradientBoostingClassifier()))
+
+## evaluating each model
+
+results = []
+names = []
+scoring = 'recall'
+
+for name, model in models:
+        kfold = KFold(n_splits=10, random_state=seed)
+        print(kfold)
+        cv_results = cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
+        print(cv_results)
+        results.append(cv_results)
+        names.append(name)
+        msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+        print(msg)
+
+
+ax34 = plt.figure(figsize=(11, 16))
+ax34.suptitle('Algorithms Comparison')
+ax34 = ax34.add_subplot(111)
+plt.boxplot(results)
+ax34.set_xticklabels(names)
+plt.savefig("../output/Algorithms_Comparison.png")
+
+
 
 
